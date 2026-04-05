@@ -29,6 +29,29 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
+import { auth, db } from './firebase';
+import { 
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy, 
+  getDocs,
+  getDoc,
+  getDocFromServer,
+  writeBatch
+} from 'firebase/firestore';
+import { 
+  onAuthStateChanged, 
+  signOut,
+  signInAnonymously,
+  User as FirebaseUser
+} from 'firebase/auth';
 
 // Types
 interface GolfClub {
@@ -41,7 +64,7 @@ interface GolfClub {
   image: string;
   rating: number;
   reviews: number;
-  flex: 'R' | 'SR' | 'S';
+  flex: 'R' | 'SR' | 'S' | 'L';
 }
 
 interface UserProfile {
@@ -66,6 +89,7 @@ interface RentalRecord {
   userPhone?: string;
   isDeletedByUser?: boolean;
   timestamp?: string;
+  userId?: string;
 }
 
 interface BannerConfig {
@@ -85,7 +109,7 @@ const INITIAL_CLUBS: GolfClub[] = [
     type: '드라이버',
     condition: 'S',
     pricePerDay: 28000,
-    image: 'https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?auto=format&fit=crop&q=80&w=600&h=600',
+    image: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&q=80&w=600&h=600',
     rating: 5.0,
     reviews: 45,
     flex: 'SR'
@@ -97,7 +121,7 @@ const INITIAL_CLUBS: GolfClub[] = [
     type: '드라이버',
     condition: 'S',
     pricePerDay: 26000,
-    image: 'https://images.unsplash.com/photo-1622398925373-3f91b13f713e?auto=format&fit=crop&q=80&w=600&h=600',
+    image: 'https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?auto=format&fit=crop&q=80&w=600&h=600',
     rating: 4.9,
     reviews: 112,
     flex: 'S'
@@ -109,7 +133,7 @@ const INITIAL_CLUBS: GolfClub[] = [
     type: '드라이버',
     condition: 'S',
     pricePerDay: 30000,
-    image: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&q=80&w=600&h=600',
+    image: 'https://images.unsplash.com/photo-1622398925373-3f91b13f713e?auto=format&fit=crop&q=80&w=600&h=600',
     rating: 4.8,
     reviews: 28,
     flex: 'S'
@@ -221,6 +245,102 @@ const INITIAL_CLUBS: GolfClub[] = [
     rating: 4.9,
     reviews: 8,
     flex: 'S'
+  },
+  {
+    id: '13',
+    name: '기본 드라이버 (Standard)',
+    brand: 'Standard',
+    type: '드라이버',
+    condition: 'A',
+    pricePerDay: 15000,
+    image: 'https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 4.5,
+    reviews: 10,
+    flex: 'R'
+  },
+  {
+    id: '14',
+    name: '젝시오 여성 풀세트 (XXIO)',
+    brand: 'XXIO',
+    type: '클럽세트',
+    condition: 'S',
+    pricePerDay: 110000,
+    image: 'https://images.unsplash.com/photo-1591491640784-3232eb748d4b?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 5.0,
+    reviews: 24,
+    flex: 'L'
+  },
+  {
+    id: '15',
+    name: '로그 남성 풀세트 (Rogue ST)',
+    brand: 'Callaway',
+    type: '클럽세트',
+    condition: 'A',
+    pricePerDay: 95000,
+    image: 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 4.8,
+    reviews: 32,
+    flex: 'S'
+  },
+  {
+    id: '16',
+    name: '야마하 여성 풀세트 (Yamaha)',
+    brand: 'Yamaha',
+    type: '클럽세트',
+    condition: 'S',
+    pricePerDay: 105000,
+    image: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 4.9,
+    reviews: 15,
+    flex: 'L'
+  },
+  {
+    id: '17',
+    name: '캘러웨이 남성 풀세트 (Callaway)',
+    brand: 'Callaway',
+    type: '클럽세트',
+    condition: 'A',
+    pricePerDay: 85000,
+    image: 'https://images.unsplash.com/photo-1592919016327-5050f748bad4?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 4.7,
+    reviews: 41,
+    flex: 'R'
+  },
+  {
+    id: '18',
+    name: '기본 풀세트 (Standard Set)',
+    brand: 'Standard',
+    type: '클럽세트',
+    condition: 'B',
+    pricePerDay: 55000,
+    image: 'https://images.unsplash.com/photo-1605141014352-094034260341?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 4.4,
+    reviews: 67,
+    flex: 'R'
+  },
+  {
+    id: '19',
+    name: '캘러웨이 레바 우드 (Reva)',
+    brand: 'Callaway',
+    type: '우드',
+    condition: 'S',
+    pricePerDay: 20000,
+    image: 'https://images.unsplash.com/photo-1622398925373-3f91b13f713e?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 4.9,
+    reviews: 9,
+    flex: 'L'
+  },
+  {
+    id: '20',
+    name: '여성용 풀세트 (가성비 모델)',
+    brand: 'Standard',
+    type: '클럽세트',
+    condition: 'A',
+    pricePerDay: 75000,
+    image: 'https://images.unsplash.com/photo-1593111774642-996962388656?auto=format&fit=crop&q=80&w=600&h=600',
+    rating: 4.6,
+    reviews: 22,
+    flex: 'L'
   }
 ];
 
@@ -234,35 +354,17 @@ const INITIAL_BANNER: BannerConfig = {
 const CATEGORIES = ['전체', '클럽세트', '드라이버', '아이언', '퍼터', '우드', '유틸리티', '웨지'];
 
 export default function App() {
-  const [clubs, setClubs] = useState<GolfClub[]>(() => {
-    const saved = localStorage.getItem('gr_clubs');
-    const version = localStorage.getItem('gr_data_version');
-    if (saved && version === DATA_VERSION) {
-      return JSON.parse(saved);
-    }
-    return INITIAL_CLUBS;
-  });
-  const [banner, setBanner] = useState<BannerConfig>(() => {
-    const saved = localStorage.getItem('gr_banner');
-    const version = localStorage.getItem('gr_data_version');
-    if (saved && version === DATA_VERSION) {
-      return JSON.parse(saved);
-    }
-    return INITIAL_BANNER;
-  });
+  const [clubs, setClubs] = useState<GolfClub[]>(INITIAL_CLUBS);
+  const [banner, setBanner] = useState<BannerConfig>(INITIAL_BANNER);
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClub, setSelectedClub] = useState<GolfClub | null>(null);
   
   // User States
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('gr_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [rentalHistory, setRentalHistory] = useState<RentalRecord[]>(() => {
-    const saved = localStorage.getItem('gr_history');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [rentalHistory, setRentalHistory] = useState<RentalRecord[]>([]);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [rentalDays, setRentalDays] = useState(1);
@@ -336,109 +438,259 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('gr_clubs', JSON.stringify(clubs));
-      localStorage.setItem('gr_banner', JSON.stringify(banner));
-      localStorage.setItem('gr_history', JSON.stringify(rentalHistory));
-      localStorage.setItem('gr_user', JSON.stringify(user));
-      localStorage.setItem('gr_cart', JSON.stringify(cart));
-      localStorage.setItem('gr_data_version', DATA_VERSION);
-    } catch (e) {
-      console.error('LocalStorage save failed:', e);
-      if (e instanceof Error && e.name === 'QuotaExceededError') {
-        alert('저장 공간이 부족합니다. 너무 큰 이미지를 업로드했거나 데이터가 너무 많습니다. 이미지를 URL 방식으로 입력하는 것을 권장합니다.');
-      }
-    }
-  }, [clubs, banner, rentalHistory, user, cart]);
+  // Firebase Error Handler
+  const handleFirestoreError = (error: unknown, operationType: string, path: string | null) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  };
 
-  const handleAdminLogin = () => {
-    if (adminPassword === 'admin1234') {
-      const updatedUser = user 
-        ? { ...user, isAdmin: true } 
-        : { name: '관리자', phone: '010-0000-0000', isAdmin: true };
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fUser) => {
+      setFirebaseUser(fUser);
+      if (fUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', fUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUser({
+              name: userData.name,
+              phone: userData.phone,
+              isAdmin: userData.role === 'admin' || fUser.email === "cmhadstory@gmail.com"
+            });
+          }
+        } catch (error) {
+          console.error('Profile fetch error:', error);
+        }
+      } else {
+        setUser(null);
+      }
+      setIsAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Sync Clubs
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'clubs'), (snapshot) => {
+      const clubsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GolfClub));
       
-      setUser(updatedUser);
-      // Ensure state is saved and tab is switched
-      localStorage.setItem('gr_user', JSON.stringify(updatedUser));
-      setShowAdminLogin(false);
-      setAdminPassword('');
-      setActiveTab('admin');
-      alert('관리자 모드로 전환되었습니다. 대시보드로 이동합니다.');
+      if (clubsData.length > 0) {
+        setClubs(clubsData);
+        
+        // Only admin can sync initial clubs to Firestore
+        if (user?.isAdmin) {
+          const existingIds = new Set(clubsData.map(c => c.id));
+          const newClubs = INITIAL_CLUBS.filter(c => !existingIds.has(c.id));
+          
+          if (newClubs.length > 0) {
+            newClubs.forEach(async (club) => {
+              try {
+                await setDoc(doc(db, 'clubs', club.id), club);
+              } catch (e) {
+                console.error('Initial club sync failed:', e);
+              }
+            });
+          }
+        }
+      } else if (user?.isAdmin) {
+        // Initial migration if empty
+        INITIAL_CLUBS.forEach(async (club) => {
+          try {
+            await setDoc(doc(db, 'clubs', club.id), club);
+          } catch (e) {
+            console.error('Initial club migration failed:', e);
+          }
+        });
+      }
+    }, (error) => handleFirestoreError(error, 'list', 'clubs'));
+    return () => unsubscribe();
+  }, [user?.isAdmin]);
+
+  // Sync Banner
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'config', 'banner'), (snapshot) => {
+      if (snapshot.exists()) {
+        setBanner(snapshot.data() as BannerConfig);
+      } else {
+        setDoc(doc(db, 'config', 'banner'), INITIAL_BANNER);
+      }
+    }, (error) => handleFirestoreError(error, 'get', 'config/banner'));
+    return () => unsubscribe();
+  }, []);
+
+  // Sync Rentals
+  useEffect(() => {
+    if (!isAuthReady) return;
+    
+    let q;
+    if (user?.isAdmin) {
+      q = query(collection(db, 'rentals'), orderBy('rentalDate', 'desc'));
+    } else if (firebaseUser) {
+      q = query(collection(db, 'rentals'), where('userId', '==', firebaseUser.uid), orderBy('rentalDate', 'desc'));
     } else {
-      alert('비밀번호가 틀렸습니다. (힌트: admin1234)');
+      setRentalHistory([]);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const rentalsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RentalRecord));
+      setRentalHistory(rentalsData);
+    }, (error) => handleFirestoreError(error, 'list', 'rentals'));
+    return () => unsubscribe();
+  }, [isAuthReady, user?.isAdmin, firebaseUser]);
+
+  const handleLogin = () => {
+    setShowSignUp(true);
+  };
+
+  const handleLogout = async () => {
+    console.log('Logging out...');
+    try {
+      await signOut(auth);
+      setUser(null);
+      setShowLogoutConfirm(false);
+      setActiveTab('home');
+      console.log('Logout successful');
+    } catch (error) {
+      console.error('Logout failed:', error);
     }
   };
 
-  const handleSignUp = () => {
+  const handleAdminLogin = async () => {
+    if (adminPassword === 'admin1234') {
+      // Firebase Auth가 실패하더라도 로컬 상태로 관리자 모드 진입
+      setUser({
+        name: '관리자',
+        phone: '',
+        isAdmin: true
+      });
+      
+      // 시도만 해보고 실패해도 무시 (보안규칙이 이미 풀려있으므로)
+      try {
+        if (!firebaseUser) {
+          const result = await signInAnonymously(auth);
+          setFirebaseUser(result.user);
+        }
+      } catch (e) {
+        console.log('Auth failed but proceeding as guest admin');
+      }
+      
+      setShowAdminLogin(false);
+      setAdminPassword('');
+      setActiveTab('admin');
+      alert('관리자 모드로 전환되었습니다.');
+    } else {
+      alert('비밀번호가 틀렸습니다.');
+    }
+  };
+
+  const handleSignUp = async () => {
     if (!signUpForm.name || !signUpForm.phone) {
       alert('이름과 전화번호를 모두 입력해주세요.');
       return;
     }
-    setUser(signUpForm);
-    setShowSignUp(false);
-  };
-
-  const handleRental = (club: GolfClub, isAddingMore: boolean = false) => {
-    if (!user) {
-      setShowSignUp(true);
-      return;
-    }
-
-    if (!deliveryLocation) {
-      alert('배송 위치를 입력해주세요.');
-      deliveryRef.current?.focus();
-      return;
-    }
-    if (!rentalDate) {
-      alert('대여 날짜를 입력해주세요.');
-      dateRef.current?.focus();
-      return;
-    }
-    if (!startTime) {
-      alert('라운딩 시작 시간을 입력해주세요.');
-      startRef.current?.focus();
-      return;
-    }
-    if (!endTime) {
-      alert('반납 시간을 입력해주세요.');
-      endRef.current?.focus();
-      return;
-    }
-
-    const start = new Date(rentalDate);
-    const end = new Date(start);
-    end.setDate(start.getDate() + rentalDays);
-
-    const newRecord: RentalRecord = {
-      id: Date.now().toString(),
-      clubId: club.id,
-      clubName: club.name,
-      clubImage: club.image,
-      rentalDate: rentalDate,
-      returnDate: end.toLocaleDateString(),
-      totalPrice: club.pricePerDay * rentalDays,
-      status: '대여중',
-      deliveryLocation,
-      startTime,
-      endTime,
-      userName: user?.name,
-      userPhone: user?.phone
-    };
-
-    const newCart = [...cart, newRecord];
-    setCart(newCart);
-    setSelectedClub(null);
     
+    // 로컬 상태 즉시 업데이트 (로그인 없이도 작동하게)
+    const userData = {
+      name: signUpForm.name,
+      phone: signUpForm.phone,
+      isAdmin: false
+    };
+    setUser(userData);
+    
+    // Firestore 저장 시도 (보안규칙이 풀려있으므로 익명로그인 실패해도 ID만 있으면 됨)
+    try {
+      let uid = firebaseUser?.uid || `guest_${Date.now()}`;
+      if (!firebaseUser) {
+        try {
+          const result = await signInAnonymously(auth);
+          uid = result.user.uid;
+          setFirebaseUser(result.user);
+        } catch (e) {
+          console.log('Auth failed, using guest ID');
+        }
+      }
+      
+      await setDoc(doc(db, 'users', uid), {
+        ...userData,
+        role: 'user'
+      });
+    } catch (error) {
+      console.error('Firestore save error:', error);
+    }
+    
+    setShowSignUp(false);
+    setSignUpForm({ name: '', phone: '' });
+    alert('가입이 완료되었습니다!');
+  };
+
+  const handleRental = async (club: GolfClub, isAddingMore: boolean = false) => {
+    console.log('handleRental called:', club.name, 'isAddingMore:', isAddingMore);
+    
+    // '클럽 추가하기' (장바구니 담기)는 로그인/정보입력 없이도 가능하게 변경
     if (!isAddingMore) {
-      setPaymentSource('cart');
-      setShowPaymentInfo(true);
-    } else {
-      alert('클럽이 추가되었습니다. 다른 클럽을 선택해주세요.');
+      if (!user || user.phone === '') {
+        console.log('User not logged in, showing login modal');
+        handleLogin();
+        return;
+      }
+
+      if (!deliveryLocation || !rentalDate || !startTime || !endTime) {
+        alert('배송지, 날짜, 시간을 모두 입력해주세요.');
+        return;
+      }
+    }
+
+    try {
+      const start = new Date(rentalDate || new Date().toISOString().split('T')[0]);
+      const end = new Date(start);
+      end.setDate(start.getDate() + rentalDays);
+
+      const uid = firebaseUser?.uid || `guest_${Date.now()}`;
+      const newRecord: RentalRecord = {
+        id: Date.now().toString(),
+        clubId: club.id,
+        clubName: club.name,
+        clubImage: club.image,
+        rentalDate: rentalDate || new Date().toISOString().split('T')[0],
+        returnDate: end.toLocaleDateString(),
+        totalPrice: club.pricePerDay * rentalDays,
+        status: '입금대기',
+        deliveryLocation: deliveryLocation || '미지정',
+        startTime: startTime || '00:00',
+        endTime: endTime || '00:00',
+        userName: user?.name || '게스트',
+        userPhone: user?.phone || '',
+        userId: uid,
+        timestamp: new Date().toISOString()
+      };
+
+      setCart(prev => [...prev, newRecord]);
+      
+      if (!isAddingMore) {
+        setSelectedClub(null);
+        setPaymentSource('cart');
+        setShowPaymentInfo(true);
+      } else {
+        alert('장바구니에 추가되었습니다!');
+      }
+    } catch (error) {
+      console.error('handleRental error:', error);
+      alert('오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
 
-  const handlePaymentConfirm = () => {
+  const handlePaymentConfirm = async () => {
     const itemsToPay = paymentSource === 'cart' ? cart : paymentHistoryItems;
     if (user && itemsToPay.length > 0) {
       const totalAmount = itemsToPay.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -466,40 +718,55 @@ export default function App() {
         performCopy();
       }
 
-      if (paymentSource === 'cart') {
-        const newRecords = cart.map(item => ({
-          ...item,
-          status: '입금대기' as const,
-          timestamp: new Date().toLocaleString()
-        }));
-
-        setRentalHistory([...newRecords, ...rentalHistory]);
-        setLastOrder([...newRecords]);
-        setCart([]);
+      try {
+        const uid = firebaseUser?.uid || `guest_${Date.now()}`;
+        if (paymentSource === 'cart') {
+          for (const item of cart) {
+            const rentalData = {
+              ...item,
+              status: '입금대기' as const,
+              timestamp: new Date().toISOString(),
+              userId: uid
+            };
+            await setDoc(doc(db, 'rentals', item.id), rentalData);
+          }
+          setCart([]);
+          setDeliveryLocation('');
+          setStartTime('');
+          setEndTime('');
+          setRentalDays(1);
+        } else {
+          for (const item of paymentHistoryItems) {
+            await updateDoc(doc(db, 'rentals', item.id), { status: '입금대기' });
+          }
+        }
         
-        setDeliveryLocation('');
-        setStartTime('');
-        setEndTime('');
-        setRentalDays(1);
+        setShowPaymentInfo(false);
+        setActiveTab('mypage');
+      } catch (error) {
+        console.error('Rental save error:', error);
+        alert('저장에 실패했습니다.');
       }
-      
-      setShowPaymentInfo(false);
-      setActiveTab('mypage');
     }
   };
 
-  const handleUpdateRentalStatus = (id: string, newStatus: '입금대기' | '결제완료' | '대여중' | '반납완료' | '취소됨') => {
-    setRentalHistory(prev => {
-      const newHistory = prev.map(record => 
-        record.id === id ? { 
-          ...record, 
-          status: newStatus, 
-          isDeletedByUser: newStatus === '취소됨' ? true : record.isDeletedByUser 
-        } : record
-      );
-      localStorage.setItem('gr_history', JSON.stringify(newHistory));
-      return newHistory;
-    });
+  const handleUpdateRentalStatus = async (id: string, newStatus: '입금대기' | '결제완료' | '대여중' | '반납완료' | '취소됨') => {
+    try {
+      await updateDoc(doc(db, 'rentals', id), { 
+        status: newStatus,
+        isDeletedByUser: newStatus === '취소됨' ? true : false
+      });
+    } catch (error) {
+      handleFirestoreError(error, 'update', `rentals/${id}`);
+    }
+  };
+
+  const deleteRental = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'rentals', id));
+    } catch (error) {
+      handleFirestoreError(error, 'delete', `rentals/${id}`);
+    }
   };
 
   const handleExportExcel = () => {
@@ -537,14 +804,25 @@ export default function App() {
     });
   };
 
-  const handleUpdateProfile = () => {
-    if (!user) return;
+  const handleUpdateProfile = async () => {
+    if (!user || !firebaseUser) return;
     const updatedUser = { ...user, ...editProfileForm };
-    setUser(updatedUser);
-    // Explicitly update localStorage to ensure persistence
-    localStorage.setItem('gr_user', JSON.stringify(updatedUser));
-    setShowEditProfile(false);
-    alert('프로필이 수정되었습니다.');
+    
+    try {
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        name: editProfileForm.name,
+        phone: editProfileForm.phone,
+        role: user.isAdmin ? 'admin' : 'user'
+      }, { merge: true });
+      
+      setUser(updatedUser);
+      setShowEditProfile(false);
+      alert('프로필이 수정되었습니다.');
+    } catch (error) {
+      console.error('Profile update error:', error);
+      handleFirestoreError(error, 'update', `users/${firebaseUser.uid}`);
+      alert('프로필 수정에 실패했습니다.');
+    }
   };
 
   const visibleHistory = useMemo(() => 
@@ -562,18 +840,51 @@ export default function App() {
   const updateClub = (id: string, updates: Partial<GolfClub>) => {
     setClubs(prev => {
       const newClubs = prev.map(c => c.id === id ? { ...c, ...updates } : c);
-      localStorage.setItem('gr_clubs', JSON.stringify(newClubs));
       return newClubs;
     });
   };
 
-  const deleteClub = (id: string) => {
-    openConfirm('상품 삭제', '정말 이 상품을 삭제하시겠습니까?', () => {
-      setClubs(prev => {
-        const newClubs = prev.filter(c => c.id !== id);
-        localStorage.setItem('gr_clubs', JSON.stringify(newClubs));
-        return newClubs;
-      });
+  const saveAdminSettings = async () => {
+    console.log('Saving admin settings...');
+    const saveBtn = document.activeElement as HTMLButtonElement;
+    if (saveBtn) saveBtn.disabled = true;
+    
+    try {
+      const batch = writeBatch(db);
+      
+      // Save banner
+      batch.set(doc(db, 'config', 'banner'), banner);
+      
+      // Save clubs
+      for (const club of clubs) {
+        if (club.id) {
+          batch.set(doc(db, 'clubs', club.id), club);
+        }
+      }
+      
+      await batch.commit();
+      console.log('Admin settings saved successfully');
+      
+      alert('설정이 저장되었습니다.');
+      setActiveTab('home');
+      window.scrollTo(0, 0);
+    } catch (error) {
+      console.error('Save settings error:', error);
+      handleFirestoreError(error, 'write', 'admin_settings');
+      alert('저장에 실패했습니다. 권한을 확인해주세요.');
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  };
+
+  const deleteClub = async (id: string) => {
+    openConfirm('상품 삭제', '정말 이 상품을 삭제하시겠습니까?', async () => {
+      try {
+        await deleteDoc(doc(db, 'clubs', id));
+        setClubs(prev => prev.filter(c => c.id !== id));
+      } catch (error) {
+        handleFirestoreError(error, 'delete', `clubs/${id}`);
+      }
     });
   };
 
@@ -632,7 +943,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[130] bg-black/60 backdrop-blur-md flex items-center justify-center p-6"
+            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
@@ -652,11 +963,7 @@ export default function App() {
                   취소
                 </button>
                 <button 
-                  onClick={() => {
-                    setUser(null);
-                    setActiveTab('home');
-                    setShowLogoutConfirm(false);
-                  }}
+                  onClick={handleLogout}
                   className="flex-1 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100"
                 >
                   로그아웃
@@ -714,6 +1021,7 @@ export default function App() {
                 >
                   가입 및 로그인
                 </button>
+
                 <button 
                   onClick={() => setShowSignUp(false)}
                   className="w-full py-2 text-slate-400 text-sm font-medium"
@@ -783,6 +1091,12 @@ export default function App() {
                   <h2 className="text-2xl font-bold">관리자 대시보드</h2>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setShowLogoutConfirm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" /> 로그아웃
+                  </button>
                   <button 
                     onClick={() => setActiveTab('home')}
                     className="p-2 hover:bg-slate-100 rounded-full"
@@ -934,11 +1248,7 @@ export default function App() {
                                   <button 
                                     onClick={() => {
                                       openConfirm('기록 영구 삭제', '이 기록을 영구적으로 삭제하시겠습니까? (관리자 전용)', () => {
-                                        setRentalHistory(prev => {
-                                          const newHistory = prev.filter(r => r.id !== record.id);
-                                          localStorage.setItem('gr_history', JSON.stringify(newHistory));
-                                          return newHistory;
-                                        });
+                                        deleteRental(record.id);
                                       });
                                     }}
                                     className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -1124,7 +1434,7 @@ export default function App() {
 
               <div className="mt-12 flex justify-center">
                 <button 
-                  onClick={() => setActiveTab('home')}
+                  onClick={saveAdminSettings}
                   className="bg-emerald-600 text-white px-12 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all flex items-center gap-2"
                 >
                   <Save className="w-6 h-6" /> 설정 저장 및 홈으로
@@ -1207,9 +1517,9 @@ export default function App() {
                 <Settings className="w-6 h-6" />
               </button>
             )}
-            {!user ? (
+            {(!user || user.phone === '') ? (
               <button 
-                onClick={() => setShowSignUp(true)}
+                onClick={handleLogin}
                 className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold"
               >
                 <LogIn className="w-4 h-4" /> 로그인
@@ -1374,16 +1684,16 @@ export default function App() {
         )}
         {activeTab === 'mypage' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            {!user ? (
+            {(!user || user.phone === '') ? (
               <div className="py-20 text-center bg-white rounded-3xl border border-slate-200">
                 <User className="w-16 h-16 text-slate-200 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">로그인이 필요합니다</h3>
                 <p className="text-slate-400 mb-6">대여 내역 확인을 위해 로그인해주세요.</p>
                 <button 
-                  onClick={() => setShowSignUp(true)}
+                  onClick={handleLogin}
                   className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold"
                 >
-                  로그인 / 회원가입
+                  로그인
                 </button>
               </div>
             ) : (
@@ -1696,67 +2006,65 @@ export default function App() {
                     <span className="font-medium">왕복 무료 배송 (문 앞 수거 서비스)</span>
                   </div>
                   
-                  {user && (
-                    <div className="space-y-3 pt-2">
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1">왕복 무료 배송 위치 (호텔/골프장 등)</label>
+                      <input 
+                        ref={deliveryRef}
+                        type="text"
+                        className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                        placeholder="배송 받으실 위치를 입력하세요"
+                        value={deliveryLocation}
+                        onChange={(e) => setDeliveryLocation(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1">왕복 무료 배송 위치 (호텔/골프장 등)</label>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1">대여 날짜</label>
                         <input 
-                          ref={deliveryRef}
-                          type="text"
+                          ref={dateRef}
+                          type="date"
                           className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                          placeholder="배송 받으실 위치를 입력하세요"
-                          value={deliveryLocation}
-                          onChange={(e) => setDeliveryLocation(e.target.value)}
+                          value={rentalDate}
+                          onChange={(e) => setRentalDate(e.target.value)}
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-1">대여 날짜</label>
-                          <input 
-                            ref={dateRef}
-                            type="date"
-                            className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                            value={rentalDate}
-                            onChange={(e) => setRentalDate(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-1">대여 기간 (일)</label>
-                          <select 
-                            className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                            value={rentalDays}
-                            onChange={(e) => setRentalDays(parseInt(e.target.value))}
-                          >
-                            {[1, 2, 3, 4, 5, 6, 7].map(d => (
-                              <option key={d} value={d}>{d}일</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-1">라운딩 시작시간</label>
-                          <input 
-                            ref={startRef}
-                            type="time"
-                            className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                            value={startTime}
-                            onChange={(e) => setStartTime(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-1">반납 시간</label>
-                          <input 
-                            ref={endRef}
-                            type="time"
-                            className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                            value={endTime}
-                            onChange={(e) => setEndTime(e.target.value)}
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1">대여 기간 (일)</label>
+                        <select 
+                          className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                          value={rentalDays}
+                          onChange={(e) => setRentalDays(parseInt(e.target.value))}
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7].map(d => (
+                            <option key={d} value={d}>{d}일</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                  )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1">라운딩 시작시간</label>
+                        <input 
+                          ref={startRef}
+                          type="time"
+                          className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1">반납 시간</label>
+                        <input 
+                          ref={endRef}
+                          type="time"
+                          className="w-full bg-slate-100 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-4">

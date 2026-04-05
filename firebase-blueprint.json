@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "GolfClub": {
+      "title": "Golf Club",
+      "description": "A golf club available for rent",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "type": { "type": "string" },
+        "condition": { "type": "string" },
+        "pricePerDay": { "type": "number" },
+        "image": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviews": { "type": "number" },
+        "flex": { "type": "string" }
+      },
+      "required": ["id", "name", "brand", "type", "condition", "pricePerDay", "image"]
+    },
+    "RentalRecord": {
+      "title": "Rental Record",
+      "description": "A record of a golf club rental",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "clubName": { "type": "string" },
+        "clubImage": { "type": "string" },
+        "rentalDate": { "type": "string" },
+        "returnDate": { "type": "string" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string" },
+        "deliveryLocation": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhone": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "clubId", "rentalDate", "totalPrice", "status", "userId"]
+    },
+    "BannerConfig": {
+      "title": "Banner Configuration",
+      "description": "Configuration for the home page banner",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "tag": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "clubs": {
+      "schema": "GolfClub",
+      "description": "Collection of available golf clubs"
+    },
+    "rentals": {
+      "schema": "RentalRecord",
+      "description": "Collection of all rental records"
+    },
+    "config": {
+      "schema": "BannerConfig",
+      "description": "Global application configuration"
+    }
+  }
+}
